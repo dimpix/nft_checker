@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Mini App</title>
+    <title>Telegram Mini App for TON</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonconnect/sdk@latest/dist/tonconnect-sdk.min.js"></script>
     <style>
         :root {
             --bg-color: #e0e5ec;
@@ -110,25 +111,88 @@
             });
         });
 
+        // Initialize TonConnect
+        const tonconnect = new TonConnect({
+            manifestUrl: 'https://your-app-domain.com/tonconnect-manifest.json'
+        });
+
+        let wallet = null;
+
         // Implement button functionalities
-        document.getElementById('connectBtn').addEventListener('click', () => {
+        document.getElementById('connectBtn').addEventListener('click', async () => {
             console.log('Connect button clicked');
-            // Add your connect logic here
+            try {
+                const walletsList = await tonconnect.getWallets();
+                wallet = await tonconnect.connect(walletsList[0]);
+                console.log('Connected to wallet:', wallet);
+                tg.showAlert('Connected to TON wallet successfully!');
+            } catch (error) {
+                console.error('Connection error:', error);
+                tg.showAlert('Failed to connect to TON wallet. Please try again.');
+            }
         });
 
-        document.getElementById('checkBtn').addEventListener('click', () => {
+        document.getElementById('checkBtn').addEventListener('click', async () => {
             console.log('Check button clicked');
-            // Add your check logic here
+            if (!wallet) {
+                tg.showAlert('Please connect to a wallet first.');
+                return;
+            }
+            try {
+                const balance = await tonconnect.getBalance(wallet.address);
+                tg.showAlert(`Your TON balance: ${balance} TON`);
+            } catch (error) {
+                console.error('Balance check error:', error);
+                tg.showAlert('Failed to check balance. Please try again.');
+            }
         });
 
-        document.getElementById('sendBtn').addEventListener('click', () => {
+        document.getElementById('sendBtn').addEventListener('click', async () => {
             console.log('Send button clicked');
-            // Add your send logic here
+            if (!wallet) {
+                tg.showAlert('Please connect to a wallet first.');
+                return;
+            }
+            try {
+                const amount = prompt('Enter amount to send (in TON):');
+                const recipient = prompt('Enter recipient address:');
+                if (!amount || !recipient) {
+                    tg.showAlert('Send cancelled.');
+                    return;
+                }
+                const tx = {
+                    to: recipient,
+                    value: amount,
+                    data: 'Test transaction'
+                };
+                const result = await tonconnect.sendTransaction(wallet, tx);
+                console.log('Transaction sent:', result);
+                tg.showAlert('Transaction sent successfully!');
+            } catch (error) {
+                console.error('Send error:', error);
+                tg.showAlert('Failed to send transaction. Please try again.');
+            }
         });
 
-        document.getElementById('takeBtn').addEventListener('click', () => {
+        document.getElementById('takeBtn').addEventListener('click', async () => {
             console.log('Take button clicked');
-            // Add your take logic here
+            if (!wallet) {
+                tg.showAlert('Please connect to a wallet first.');
+                return;
+            }
+            try {
+                const amount = prompt('Enter amount to receive (in TON):');
+                if (!amount) {
+                    tg.showAlert('Receive cancelled.');
+                    return;
+                }
+                // Generate a QR code or deep link for receiving TON
+                const receiveLink = `ton://transfer/${wallet.address}?amount=${amount}`;
+                tg.showAlert(`Use this link to receive ${amount} TON:\n${receiveLink}`);
+            } catch (error) {
+                console.error('Receive error:', error);
+                tg.showAlert('Failed to generate receive link. Please try again.');
+            }
         });
     </script>
 </body>
